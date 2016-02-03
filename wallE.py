@@ -24,7 +24,7 @@ def printHeader():
 
 def check_config():
 # if no config exists default config stub will be created
-    if not os.path.isfile('walle.ini'):
+    if not os.path.isfile(configPath):
 	print 'No walle.ini was found, walle-E will create new one!\n'
 
         config.add_section('CREDENTIALS')
@@ -39,7 +39,7 @@ def check_config():
         config.set('CREDENTIALS', 'notification_mail', 'report_receiver_mail')
         config.set('PATH', 'pathtomusic', 'where/to/save/songs/')
 
-        with open('walle.ini', 'w') as configfile:
+        with open(configPath, 'w') as configfile:
             config.write(configfile)
 
         print('Created new walle.ini! Please setup and rerun!')
@@ -68,7 +68,7 @@ def configurePlaylists():
     configuredSets += '}'
     config.set('PLAYLISTS', 'sets', configuredSets)
 
-    with open('walle.ini', 'w') as configfile:
+    with open(configPath, 'w') as configfile:
         config.write(configfile)
 
     print 'Playlists found and set, review config and adjust folder, then rerun again!'
@@ -111,21 +111,25 @@ def downloadSong( url, path ):
     print '\n'
     return;
 
-def sendMail( error, failedOnes=None ):
-    msg = 'walle-E reporting status on daily basis from ' + time.strftime("%d.%m.%Y") + ", this is what i did:\n\n"
+def sendMail( error, didSmth, failedOnes=None ):
+    msg = 'walle-E reporting status on daily basis from ' + time.strftime("%d.%m.%Y") + ":\n\n"
 
-    if error == 0:
-        if not failedOnes:
-            msg += "Successfully downloaded " + str(len(todo_list)) +  " songs!"
-        else:
-            msg += "Tried downloading " + str(len(todo_list)) +  " songs, however could not download these urls:\n"
-	    for key, value in failedOnes.iteritems():
-                msg += "    >> " + key + " \n"
-        
-            msg += "\n but walle-E tried his best!"
+    if didSmth == 0:
+        msg += "Todolist was found empty, so there was nothing to do."
     else:
-        msg += "While downloading a song walle-E encountered an error, but wall-E tried his best!"
+        if error == 0:
+            if not failedOnes:
+                msg += "Successfully downloaded " + str(len(todo_list)) +  " songs!"
+            else:
+                msg += "Tried downloading " + str(len(todo_list)) +  " songs, however could not download these urls:\n"
+	        for key, value in failedOnes.iteritems():
+                    msg += "    >> " + key + " \n"
+        
+                msg += "\n but walle-E tried his best!"
+        else:
+            msg += "While downloading a song walle-E encountered an error, but wall-E tried his best!"
 
+    msg += "\n\n have a nice day\n wall-E over and out"
     fullMsg = "\r\n".join(["From: " + credentials['reporting_mail'], "To: " + credentials['notification_mail'], "Subject: wall-E status reporting", "", msg])
 
     server = smtplib.SMTP('smtp.gmail.com:587')
@@ -139,11 +143,13 @@ printHeader()
 
 # check if config file exists, if not set up and shutdown wall-E
 config = ConfigParser()
+configPath = os.path.realpath(__file__)
+configPath = configPath[:configPath.rfind('/')] + '/walle.ini'
 check_config()
 
 # read credentials and playlist information from config file
 print 'Walle reading config...'
-config.read(os.path.dirname(os.path.realpath(__file__)) + '/walle.ini')
+config.read(configPath)
 
 credentials = {}
 credentials['ID'] = config.get('CREDENTIALS', 'client_id')
@@ -178,7 +184,8 @@ songs = todolist.tracks
 
 #no songs found, nothing to download
 if len(songs) == 0:
-   print 'Walle did not find any songs, returning to sleep...'
+   print 'Walle did not find any songs, reporting status and returning to sleep...'
+   sendMail(0, 0)
    exit(0)
 elif len(songs) == 1:
    print 'Walle found one track to download...\n'
@@ -216,7 +223,7 @@ print '\nDownload finished!\n'
 
 #send mail report
 print 'Sending report mail...'
-sendMail(0, failed_downloads)
+sendMail(0, 1, failed_downloads)
 print 'Report sent!\n'
 
 #clear soundcloud todolist
