@@ -49,6 +49,8 @@ Fill in the credentials as shown, to get the client_id and client_secret visit
 https://auth0.com/docs/connections/social/soundcloud
 
 For mail reporting fill in the credentials of the mail adress reports should be sent from, current version of wall-E only supports gmail accounts, notification mail can be from any provider.
+To disable mail reporting just delete the reporting and notification mail information from the config stub.
+
 
 After that rerun the script to continue setting up the config.
 It is of fundamental importance to have a playlist titled '//TODO', otherwise wall-E will not know which tracks to download :disappointed:

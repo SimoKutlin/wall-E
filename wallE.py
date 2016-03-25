@@ -106,7 +106,9 @@ def downloadSong( url, path ):
 
     except OSError:
         print 'Error ocurred, shutting down Walle!'
-        sendMail( 1 )
+        if activeReporting == True:
+            sendMail( 1 )
+
         exit(0)
     print '\n'
     return;
@@ -118,10 +120,15 @@ def sendMail( error, didSmth, failedOnes=None ):
         msg += "Todolist was found empty, so there was nothing to do."
     else:
         if error == 0:
-            if not failedOnes:
-                msg += "Successfully downloaded " + str(len(todo_list)) +  " songs!"
+            if len(todo_list) % 10 == 1:
+                song_asset = " song"
             else:
-                msg += "Tried downloading " + str(len(todo_list)) +  " songs, however could not download these urls:\n"
+                song_asset = " songs"
+
+            if not failedOnes:
+                msg += "Successfully downloaded " + str(len(todo_list)) +  song_asset + "!"
+            else:
+                msg += "Tried downloading " + str(len(todo_list)) + song_asset + " , however could not download these urls:\n"
 	        for key, value in failedOnes.iteritems():
                     msg += "    >> " + key + " \n"
         
@@ -145,6 +152,7 @@ printHeader()
 config = ConfigParser()
 configPath = os.path.realpath(__file__)
 configPath = configPath[:configPath.rfind('/')] + '/walle.ini'
+activeReporting = False
 check_config()
 
 # read credentials and playlist information from config file
@@ -156,9 +164,12 @@ credentials['ID'] = config.get('CREDENTIALS', 'client_id')
 credentials['secret'] = config.get('CREDENTIALS', 'client_secret')
 credentials['soundcloud_mail'] = config.get('CREDENTIALS', 'soundcloud_user')
 credentials['soundcloud_pw'] = config.get('CREDENTIALS', 'soundcloud_pw')
-credentials['reporting_mail'] = config.get('CREDENTIALS', 'reporting_mail')
-credentials['reporting_pw'] = config.get('CREDENTIALS', 'reporting_pw')
-credentials['notification_mail'] = config.get('CREDENTIALS', 'notification_mail')
+
+if config.has_option('CREDENTIALS', 'reporting_mail'):
+    credentials['reporting_mail'] = config.get('CREDENTIALS', 'reporting_mail')
+    credentials['reporting_pw'] = config.get('CREDENTIALS', 'reporting_pw')
+    credentials['notification_mail'] = config.get('CREDENTIALS', 'notification_mail')
+    activeReporting = True
 
 if not config.has_option('PLAYLISTS', 'todoListID'):
     configurePlaylists()
@@ -184,9 +195,13 @@ songs = todolist.tracks
 
 #no songs found, nothing to download
 if len(songs) == 0:
-   print 'Walle did not find any songs, reporting status and returning to sleep...'
-   sendMail(0, 0)
-   exit(0)
+    if activeReporting == True:
+        print 'Walle did not find any songs, reporting status and returning to sleep...'
+        sendMail(0, 0)
+    else:
+	print 'Walle did not find any songs, returning to sleep...'
+
+    exit(0)
 elif len(songs) == 1:
    print 'Walle found one track to download...\n'
 else:
@@ -221,10 +236,11 @@ for key, value in todo_list.iteritems():
     downloadSong( key, value)
 print '\nDownload finished!\n'
 
-#send mail report
-print 'Sending report mail...'
-sendMail(0, 1, failed_downloads)
-print 'Report sent!\n'
+#send mail report if reporting is active
+if activeReporting == True:
+    print 'Sending report mail...'
+    sendMail(0, 1, failed_downloads)
+    print 'Report sent!\n'
 
 #clear soundcloud todolist
 print 'Cleaning todolist...'
